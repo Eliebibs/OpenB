@@ -140,4 +140,40 @@ class Whiteboard {
             timestamp: new Date().toISOString()
         }, null, 2));
     }
+
+    drawFromInstructions(instructions) {
+        try {
+            // Parse the JSON string if it's not already an object
+            const lineInstructions = typeof instructions === 'string' 
+                ? JSON.parse(instructions) 
+                : instructions;
+
+            // Validate that we have an array of instructions
+            if (!Array.isArray(lineInstructions)) {
+                throw new Error('Drawing instructions must be an array');
+            }
+
+            // Add each line to our lines array
+            lineInstructions.forEach(instruction => {
+                // Validate the instruction format
+                if (instruction.type !== 'line' || 
+                    typeof instruction.start_x !== 'number' ||
+                    typeof instruction.start_y !== 'number' ||
+                    typeof instruction.end_x !== 'number' ||
+                    typeof instruction.end_y !== 'number') {
+                    throw new Error('Invalid line instruction format');
+                }
+
+                this.lines.push(instruction);
+            });
+
+            // Redraw all lines
+            this.redrawLines();
+            
+            return true;
+        } catch (error) {
+            console.error('Error drawing instructions:', error);
+            return false;
+        }
+    }
 }

@@ -10,10 +10,20 @@
     <!-- Main container for the whiteboard -->
     <div class="whiteboard-container">
         <canvas id="whiteboard"></canvas>
+        
+        <!-- Input container -->
+        <div class="input-container">
+            <input type="text" id="drawing-input" placeholder="What do you want to draw?">
+            <button id="send-button">
+                <span class="button-text">Send</span>
+                <div class="loading-spinner"></div>
+            </button>
+        </div>
     </div>
 
     <!-- Load JavaScript files -->
     <script src="js/whiteboard.js"></script>
+    <script src="js/gptService.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>
