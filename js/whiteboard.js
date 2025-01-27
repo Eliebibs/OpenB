@@ -9,8 +9,8 @@ class Whiteboard {
         this.startX = 0;
         this.startY = 0;
         
-        // Store drawn lines
-        this.lines = [];
+        // Store drawn shapes
+        this.shapes = [];
         
         // Bind methods to this instance
         this.handleMouseDown = this.handleMouseDown.bind(this);
@@ -45,8 +45,8 @@ class Whiteboard {
 
     resize() {
         // Update canvas size
-        this.canvas.width = window.innerWidth - 40;
-        this.canvas.height = window.innerHeight - 40;
+        this.canvas.width = window.innerWidth - 50;
+        this.canvas.height = window.innerHeight - 50;
         
         // Store dimensions
         this.dimensions = {
@@ -85,10 +85,10 @@ class Whiteboard {
         const currentX = e.clientX - rect.left;
         const currentY = e.clientY - rect.top;
 
-        // Clear the canvas and redraw all previous lines
-        this.redrawLines();
+        // Clear the canvas and redraw all previous shapes
+        this.redrawShapes();
 
-        // Draw the current line preview
+        // Draw the current shape preview
         this.ctx.beginPath();
         this.ctx.moveTo(this.startX, this.startY);
         this.ctx.lineTo(currentX, currentY);
@@ -102,8 +102,8 @@ class Whiteboard {
         const endX = e.clientX - rect.left;
         const endY = e.clientY - rect.top;
 
-        // Create line object with additional context
-        const line = {
+        // Create shape object with additional context
+        const shape = {
             type: 'line',
             start_x: this.startX,
             start_y: this.startY,
@@ -111,26 +111,87 @@ class Whiteboard {
             end_y: endY,
             color: 'black',
             width: 2,
-            whiteboard_dimensions: this.dimensions // Include dimensions with each line
+            whiteboard_dimensions: this.dimensions // Include dimensions with each shape
         };
 
-        this.lines.push(line);
-        console.log('Drawing Instruction:', JSON.stringify(line, null, 2));
+        this.shapes.push(shape);
+        console.log('Drawing Instruction:', JSON.stringify(shape, null, 2));
 
         this.isDrawing = false;
     }
 
-    redrawLines() {
+    redrawShapes() {
         // Clear canvas
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // Redraw all stored lines
-        this.lines.forEach(line => {
-            this.ctx.beginPath();
-            this.ctx.moveTo(line.start_x, line.start_y);
-            this.ctx.lineTo(line.end_x, line.end_y);
-            this.ctx.stroke();
+        // Redraw all stored shapes
+        this.shapes.forEach(shape => {
+            // Set common properties
+            this.ctx.strokeStyle = shape.color || 'black';
+            this.ctx.lineWidth = shape.width || 2;
+            this.ctx.fillStyle = shape.fillColor || 'transparent';
+
+            switch (shape.type) {
+                case 'line':
+                    this.drawLine(shape);
+                    break;
+                case 'rectangle':
+                    this.drawRectangle(shape);
+                    break;
+                case 'circle':
+                    this.drawCircle(shape);
+                    break;
+                case 'polygon':
+                    this.drawPolygon(shape);
+                    break;
+                case 'text':
+                    this.drawText(shape);
+                    break;
+            }
         });
+    }
+
+    // Individual shape drawing methods
+    drawLine(shape) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(shape.start_x, shape.start_y);
+        this.ctx.lineTo(shape.end_x, shape.end_y);
+        this.ctx.stroke();
+    }
+
+    drawRectangle(shape) {
+        if (shape.fillColor) {
+            this.ctx.fillRect(shape.x, shape.y, shape.width, shape.height);
+        }
+        this.ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+    }
+
+    drawCircle(shape) {
+        this.ctx.beginPath();
+        this.ctx.arc(shape.cx, shape.cy, shape.radius, 0, 2 * Math.PI);
+        if (shape.fillColor) {
+            this.ctx.fill();
+        }
+        this.ctx.stroke();
+    }
+
+    drawPolygon(shape) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(shape.points[0].x, shape.points[0].y);
+        shape.points.slice(1).forEach(point => {
+            this.ctx.lineTo(point.x, point.y);
+        });
+        this.ctx.closePath();
+        if (shape.fillColor) {
+            this.ctx.fill();
+        }
+        this.ctx.stroke();
+    }
+
+    drawText(shape) {
+        this.ctx.font = `${shape.fontSize || 16}px ${shape.fontFamily || 'Arial'}`;
+        this.ctx.fillStyle = shape.color || 'black';
+        this.ctx.fillText(shape.content, shape.x, shape.y);
     }
 
     logWhiteboardInfo() {
@@ -144,36 +205,82 @@ class Whiteboard {
     drawFromInstructions(instructions) {
         try {
             // Parse the JSON string if it's not already an object
-            const lineInstructions = typeof instructions === 'string' 
+            const shapeInstructions = typeof instructions === 'string' 
                 ? JSON.parse(instructions) 
                 : instructions;
 
             // Validate that we have an array of instructions
-            if (!Array.isArray(lineInstructions)) {
+            if (!Array.isArray(shapeInstructions)) {
                 throw new Error('Drawing instructions must be an array');
             }
 
-            // Add each line to our lines array
-            lineInstructions.forEach(instruction => {
-                // Validate the instruction format
-                if (instruction.type !== 'line' || 
-                    typeof instruction.start_x !== 'number' ||
-                    typeof instruction.start_y !== 'number' ||
-                    typeof instruction.end_x !== 'number' ||
-                    typeof instruction.end_y !== 'number') {
-                    throw new Error('Invalid line instruction format');
+            // Add each shape to our shapes array
+            shapeInstructions.forEach(shape => {
+                // Validate the shape has a valid type
+                if (!['line', 'rectangle', 'circle', 'polygon', 'text'].includes(shape.type)) {
+                    throw new Error(`Invalid shape type: ${shape.type}`);
                 }
 
-                this.lines.push(instruction);
+                // Validate required fields based on shape type
+                this.validateShape(shape);
+
+                // Add shape to our array
+                this.shapes.push(shape);
             });
 
-            // Redraw all lines
-            this.redrawLines();
+            // Redraw all shapes
+            this.redrawShapes();
             
             return true;
         } catch (error) {
             console.error('Error drawing instructions:', error);
             return false;
+        }
+    }
+
+    validateShape(shape) {
+        switch (shape.type) {
+            case 'line':
+                if (typeof shape.start_x !== 'number' || 
+                    typeof shape.start_y !== 'number' ||
+                    typeof shape.end_x !== 'number' ||
+                    typeof shape.end_y !== 'number') {
+                    throw new Error('Invalid line coordinates');
+                }
+                break;
+
+            case 'rectangle':
+                if (typeof shape.x !== 'number' ||
+                    typeof shape.y !== 'number' ||
+                    typeof shape.width !== 'number' ||
+                    typeof shape.height !== 'number') {
+                    throw new Error('Invalid rectangle parameters');
+                }
+                break;
+
+            case 'circle':
+                if (typeof shape.cx !== 'number' ||
+                    typeof shape.cy !== 'number' ||
+                    typeof shape.radius !== 'number') {
+                    throw new Error('Invalid circle parameters');
+                }
+                break;
+
+            case 'polygon':
+                if (!Array.isArray(shape.points) || 
+                    shape.points.length < 3 ||
+                    !shape.points.every(p => typeof p.x === 'number' && typeof p.y === 'number')) {
+                    throw new Error('Invalid polygon points');
+                }
+                break;
+
+            case 'text':
+                if (typeof shape.x !== 'number' ||
+                    typeof shape.y !== 'number' ||
+                    typeof shape.content !== 'string') {
+                    throw new Error('Invalid text parameters');
+                }
+                break;
         }
     }
 }

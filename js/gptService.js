@@ -1,85 +1,87 @@
 class GPTService {
     constructor() {
-        this.API_KEY = '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'; // Replace with your actual API key
+        this.API_KEY = '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';
         this.API_URL = 'https://api.openai.com/v1/chat/completions';
     }
 
     async generateDrawingInstructions(prompt, dimensions) {
-        const systemPrompt = `You are a drawing instruction generator for a digital whiteboard. The user wants to draw "${prompt}", their white board dimensions are width: ${dimensions.width}px, height: ${dimensions.height}px. Convert that request into a series of JSON objects, each describing a line.
+        const systemPrompt = `You are a drawing instruction generator for a digital whiteboard. The user wants to draw "${prompt}" on a board with dimensions width: ${dimensions.width}px and height: ${dimensions.height}px.
 
-Each line instruction must have the following format:
+Your output must be an array of JSON objects. Each object describes a single shape. Valid "type" fields are:
 
+- "line"
+- "rectangle"
+- "circle"
+- "polygon"
+- "text"
+
+**Required fields by type**:
+
+1. "line":
 {
 "type": "line",
 "start_x": <number>,
 "start_y": <number>,
 "end_x": <number>,
 "end_y": <number>,
-"color": "black",
-"width": 2
+"color": <string>, // default "black"
+"lineWidth": <number> // default 2
 }
 
-- "type" must always be "line".
-- Coordinates (start_x, start_y, end_x, end_y) are integers.
-- "color" defaults to "black".
-- "width" defaults to 2.
-- Return multiple line objects in a JSON array if needed to represent the full drawing.
-- **Do not** include any additional keys or commentary—only the JSON.
-
-**Single-line Example**:
-[
+2. "rectangle" (if square height=width):
 {
-"type": "line",
-"start_x": 10,
-"start_y": 20,
-"end_x": 50,
-"end_y": 20,
-"color": "black",
-"width": 2
+"type": "rectangle",
+"x": <number>,
+"y": <number>,
+"width": <number>,
+"height": <number>,
+"color": <string>, // outline/stroke color, default "black"
+"lineWidth": <number>, // default 2
+"fillColor": <string> // default "transparent"
 }
-]
 
-**Multi-line Example** (e.g., simple shape or chart):
-[
+3. "circle":
 {
-"type": "line",
-"start_x": 50,
-"start_y": 100,
-"end_x": 150,
-"end_y": 100,
-"color": "black",
-"width": 2
-},
-{
-"type": "line",
-"start_x": 150,
-"start_y": 100,
-"end_x": 150,
-"end_y": 200,
-"color": "black",
-"width": 2
-},
-{
-"type": "line",
-"start_x": 150,
-"start_y": 200,
-"end_x": 50,
-"end_y": 200,
-"color": "black",
-"width": 2
-},
-{
-"type": "line",
-"start_x": 50,
-"start_y": 200,
-"end_x": 50,
-"end_y": 100,
-"color": "black",
-"width": 2
+"type": "circle",
+"cx": <number>,
+"cy": <number>,
+"radius": <number>,
+"color": <string>, // default "black"
+"lineWidth": <number>, // default 2
+"fillColor": <string> // default "transparent"
 }
-]
 
-Now, based on the user's request, output **only** a JSON array of line objects. No additional text or explanation. CODE ONLY CODE ONLY`;
+4. "polygon":
+{
+"type": "polygon",
+"points": [
+{ "x": <number>, "y": <number> },
+{ "x": <number>, "y": <number> }
+// etc.
+],
+"color": <string>, // outline/stroke color, default "black"
+"lineWidth": <number>, // default 2
+"fillColor": <string> // default "transparent"
+}
+
+5. "text":
+{
+"type": "text",
+"x": <number>,
+"y": <number>,
+"content": <string>,
+"color": <string>, // default "black"
+"fontSize": <number>, // default 16
+"fontFamily": <string> // default "Arial"
+}
+
+- **Coordinates and numeric values** should be integers whenever possible.
+- **color** defaults to "black", you can this change as necessary, ensure colors are minimalistic and work well in the drawing/s.
+- **lineWidth** defaults to 2.
+- **fillColor** defaults to "transparent".
+- **fontSize** defaults to 16, **fontFamily** to "Arial", you can this change as necessary.
+
+Return your answer as a **JSON array** of objects (one per shape), with **no additional commentary** or keys. **Only** the JSON.`;
 
         try {
             const response = await fetch(this.API_URL, {

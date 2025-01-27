@@ -7,6 +7,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Get UI elements
     const drawingInput = document.getElementById('drawing-input');
     const sendButton = document.getElementById('send-button');
+    const errorMessage = document.getElementById('error-message');
+
+    // Function to show error message
+    const showError = (message) => {
+        errorMessage.textContent = message;
+        errorMessage.classList.add('visible');
+        setTimeout(() => {
+            errorMessage.classList.remove('visible');
+        }, 3000);
+    };
 
     // Handle send button click
     sendButton.addEventListener('click', async () => {
@@ -15,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Show loading state
         sendButton.classList.add('loading');
+        drawingInput.disabled = true;
 
         try {
             // Get drawing instructions from GPT
@@ -30,25 +41,26 @@ document.addEventListener('DOMContentLoaded', () => {
             const success = whiteboard.drawFromInstructions(instructions);
             
             if (!success) {
-                console.error('Failed to draw instructions');
-                // Optionally add user feedback here
+                showError('Failed to draw instructions');
+            } else {
+                // Clear the input after successful drawing
+                drawingInput.value = '';
             }
-
-            // Clear the input after successful drawing
-            drawingInput.value = '';
 
         } catch (error) {
             console.error('Error:', error);
-            // Optionally add user feedback here
+            showError('Error generating drawing instructions');
         } finally {
-            // Hide loading state
+            // Reset UI state
             sendButton.classList.remove('loading');
+            drawingInput.disabled = false;
         }
     });
 
     // Handle enter key in input
     drawingInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
             sendButton.click();
         }
     });
