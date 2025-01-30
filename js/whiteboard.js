@@ -32,7 +32,7 @@ class Whiteboard {
 
     init() {
         // Set canvas size to match window size (minus some padding)
-        this.resize();
+        this.resizeCanvas();
         
         // Add event listeners
         this.addEventListeners();
@@ -41,21 +41,31 @@ class Whiteboard {
         this.ctx.strokeStyle = 'black';
         this.ctx.lineWidth = 2;
         this.ctx.lineCap = 'round';
+
+        // Set initial canvas background
+        this.setBackground();
     }
 
-    resize() {
-        // Update canvas size
-        this.canvas.width = window.innerWidth - 50;
-        this.canvas.height = window.innerHeight - 50;
+    setBackground() {
+        // Set white background
+        this.ctx.fillStyle = 'white';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+
+    resizeCanvas() {
+        const container = this.canvas.parentElement;
+        this.canvas.width = container.clientWidth;
+        this.canvas.height = container.clientHeight;
         
-        // Store dimensions
+        // Store dimensions for easy access
         this.dimensions = {
             width: this.canvas.width,
             height: this.canvas.height
         };
 
-        // Log updated dimensions
-        this.logWhiteboardInfo();
+        // Reset background and redraw shapes after resize
+        this.setBackground();
+        this.redrawShapes();
     }
 
     addEventListeners() {
@@ -65,7 +75,7 @@ class Whiteboard {
         this.canvas.addEventListener('mouseup', this.handleMouseUp);
         
         // Add resize listener
-        window.addEventListener('resize', () => this.resize());
+        window.addEventListener('resize', () => this.resizeCanvas());
     }
 
     handleMouseDown(e) {
@@ -121,13 +131,14 @@ class Whiteboard {
     }
 
     redrawShapes() {
-        // Clear canvas
+        // Clear and reset background
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.setBackground();
 
         // Redraw all stored shapes
         this.shapes.forEach(shape => {
-            // Set common properties
-            this.ctx.strokeStyle = shape.color || 'black';
+            // Set common properties with guaranteed contrast
+            this.ctx.strokeStyle = shape.color || '#000000';
             this.ctx.lineWidth = shape.width || 2;
             this.ctx.fillStyle = shape.fillColor || 'transparent';
 
@@ -204,38 +215,55 @@ class Whiteboard {
 
     drawFromInstructions(instructions) {
         try {
-            // Parse the JSON string if it's not already an object
-            const shapeInstructions = typeof instructions === 'string' 
-                ? JSON.parse(instructions) 
-                : instructions;
-
-            // Validate that we have an array of instructions
-            if (!Array.isArray(shapeInstructions)) {
-                throw new Error('Drawing instructions must be an array');
-            }
-
-            // Add each shape to our shapes array
-            shapeInstructions.forEach(shape => {
-                // Validate the shape has a valid type
-                if (!['line', 'rectangle', 'circle', 'polygon', 'text'].includes(shape.type)) {
-                    throw new Error(`Invalid shape type: ${shape.type}`);
+            const center = this.getCenterCoordinates();
+            
+            // Add each shape to our shapes array with scaled coordinates
+            instructions.forEach(shape => {
+                // Scale coordinates based on canvas size
+                switch(shape.type) {
+                    case 'line':
+                        const startPos = this.scaleCoordinates(shape.start_x, shape.start_y);
+                        const endPos = this.scaleCoordinates(shape.end_x, shape.end_y);
+                        shape.start_x = startPos.x;
+                        shape.start_y = startPos.y;
+                        shape.end_x = endPos.x;
+                        shape.end_y = endPos.y;
+                        break;
+                    case 'text':
+                        const textPos = this.scaleCoordinates(shape.x, shape.y);
+                        shape.x = textPos.x;
+                        shape.y = textPos.y;
+                        break;
+                    // Add other shape types as needed
                 }
-
-                // Validate required fields based on shape type
-                this.validateShape(shape);
-
-                // Add shape to our array
+                
                 this.shapes.push(shape);
             });
 
-            // Redraw all shapes
             this.redrawShapes();
-            
             return true;
         } catch (error) {
-            console.error('Error drawing instructions:', error);
+            console.error('Error in drawFromInstructions:', error);
             return false;
         }
+    }
+
+    // Helper method to get center coordinates
+    getCenterCoordinates() {
+        return {
+            x: Math.floor(this.dimensions.width / 2),
+            y: Math.floor(this.dimensions.height / 2)
+        };
+    }
+
+    // Helper method to scale coordinates relative to canvas size
+    scaleCoordinates(x, y) {
+        const scaleX = this.dimensions.width / 800; // assuming 800 is base width
+        const scaleY = this.dimensions.height / 600; // assuming 600 is base height
+        return {
+            x: Math.floor(x * scaleX),
+            y: Math.floor(y * scaleY)
+        };
     }
 
     validateShape(shape) {

@@ -4,86 +4,107 @@ class GPTService {
         this.API_URL = 'https://api.openai.com/v1/chat/completions';
     }
 
-    async generateDrawingInstructions(prompt, dimensions) {
-        const systemPrompt = `You are a drawing instruction generator for a digital whiteboard. The user wants to draw "${prompt}" on a board with dimensions width: ${dimensions.width}px and height: ${dimensions.height}px.
+    async generateMultiStepResponse(userQuestion, dimensions, currentSummary = "", existingShapes = []) {
+        const systemPrompt = `You are a step-by-step teaching assistant for a digital whiteboard. 
+Each time the user asks a question, you will provide three components in a single JSON response:
+1. An explanation that teaches the concept
+2. Drawing instructions to visualize the concept
+3. An updated summary of everything taught so far
 
-Your output must be an array of JSON objects. Each object describes a single shape. Valid "type" fields are:
-
-- "line"
-- "rectangle"
-- "circle"
-- "polygon"
-- "text"
-
-**Required fields by type**:
-
-1. "line":
+Your response must be a single JSON object with exactly these three fields:
 {
-"type": "line",
-"start_x": <number>,
-"start_y": <number>,
-"end_x": <number>,
-"end_y": <number>,
-"color": <string>, // default "black"
-"lineWidth": <number> // default 2
+    "explanation": "Clear, concise explanation of the current concept",
+    "drawing": [
+        {
+            // Array of shape objects following the formats below
+        }
+    ],
+    "summary": "Brief summary of all concepts covered, including this one"
 }
 
-2. "rectangle" (if square height=width):
+Shape formats must be one of:
+1. Line:
 {
-"type": "rectangle",
-"x": <number>,
-"y": <number>,
-"width": <number>,
-"height": <number>,
-"color": <string>, // outline/stroke color, default "black"
-"lineWidth": <number>, // default 2
-"fillColor": <string> // default "transparent"
+    "type": "line",
+    "start_x": <number>,
+    "start_y": <number>,
+    "end_x": <number>,
+    "end_y": <number>,
+    "color": <string>,
+    "lineWidth": <number>
 }
 
-3. "circle":
+2. Rectangle:
 {
-"type": "circle",
-"cx": <number>,
-"cy": <number>,
-"radius": <number>,
-"color": <string>, // default "black"
-"lineWidth": <number>, // default 2
-"fillColor": <string> // default "transparent"
+    "type": "rectangle",
+    "x": <number>,
+    "y": <number>,
+    "width": <number>,
+    "height": <number>,
+    "color": <string>,
+    "lineWidth": <number>,
+    "fillColor": <string>
 }
 
-4. "polygon":
+3. Circle:
 {
-"type": "polygon",
-"points": [
-{ "x": <number>, "y": <number> },
-{ "x": <number>, "y": <number> }
-// etc.
-],
-"color": <string>, // outline/stroke color, default "black"
-"lineWidth": <number>, // default 2
-"fillColor": <string> // default "transparent"
+    "type": "circle",
+    "cx": <number>,
+    "cy": <number>,
+    "radius": <number>,
+    "color": <string>,
+    "lineWidth": <number>,
+    "fillColor": <string>
 }
 
-5. "text":
+4. Text:
 {
-"type": "text",
-"x": <number>,
-"y": <number>,
-"content": <string>,
-"color": <string>, // default "black"
-"fontSize": <number>, // default 16
-"fontFamily": <string> // default "Arial"
+    "type": "text",
+    "x": <number>,
+    "y": <number>,
+    "content": <string>,
+    "color": <string>,
+    "fontSize": <number>,
+    "fontFamily": <string>
 }
 
-- **Coordinates and numeric values** should be integers whenever possible.
-- **color** defaults to "black", you can this change as necessary, ensure colors are minimalistic and work well in the drawing/s.
-- **lineWidth** defaults to 2.
-- **fillColor** defaults to "transparent".
-- **fontSize** defaults to 16, **fontFamily** to "Arial", you can this change as necessary.
+Example response:
+{
+    "explanation": "A supply curve shows how quantity supplied changes with price. As price increases, suppliers are willing to produce more.",
+    "drawing": [
+        {
+            "type": "line",
+            "start_x": 50,
+            "start_y": 400,
+            "end_x": 350,
+            "end_y": 100,
+            "color": "blue",
+            "lineWidth": 2
+        },
+        {
+            "type": "text",
+            "x": 200,
+            "y": 50,
+            "content": "Supply Curve",
+            "color": "black",
+            "fontSize": 16,
+            "fontFamily": "Arial"
+        }
+    ],
+    "summary": "Key concepts covered:\\n- Supply curve basics\\n- Positive relationship between price and quantity supplied"
+}
 
-Return your answer as a **JSON array** of objects (one per shape), with **no additional commentary** or keys. **Only** the JSON.`;
+Current board state:
+${JSON.stringify(existingShapes, null, 2)}
+
+Previous summary:
+${currentSummary}
+
+Return only valid JSON matching the format above. No additional text or explanation outside the JSON object.`;
 
         try {
+            console.log('Sending request to GPT with prompt:', userQuestion);
+            
             const response = await fetch(this.API_URL, {
                 method: 'POST',
                 headers: {
@@ -94,16 +115,45 @@ Return your answer as a **JSON array** of objects (one per shape), with **no add
                     model: 'gpt-4',
                     messages: [
                         { role: 'system', content: systemPrompt },
-                        { role: 'user', content: prompt }
+                        { role: 'user', content: userQuestion }
                     ],
                     temperature: 0.7
                 })
             });
 
             const data = await response.json();
-            return data.choices[0].message.content;
+
+            if (!response.ok) {
+                console.error('GPT API Error:', data);
+                throw new Error(`API error: ${data.error?.message || 'Unknown error'}`);
+            }
+
+            // Log token usage
+            if (data.usage) {
+                console.log('Token usage:', {
+                    prompt_tokens: data.usage.prompt_tokens,
+                    completion_tokens: data.usage.completion_tokens,
+                    total_tokens: data.usage.total_tokens
+                });
+            }
+
+            const content = data.choices[0].message.content;
+            
+            // Validate JSON structure
+            try {
+                const parsed = JSON.parse(content);
+                if (!parsed.explanation || !parsed.drawing || !parsed.summary) {
+                    throw new Error('Missing required fields in GPT response');
+                }
+                return parsed;
+            } catch (parseError) {
+                console.error('JSON Parse Error:', parseError);
+                console.error('Raw content:', content);
+                throw new Error('Failed to parse GPT response as JSON');
+            }
+
         } catch (error) {
-            console.error('Error generating drawing instructions:', error);
+            console.error('GPT Service Error:', error);
             throw error;
         }
     }

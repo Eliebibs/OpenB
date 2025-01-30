@@ -3,25 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Universal Whiteboard</title>
+    <title>Interactive Learning Whiteboard</title>
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <!-- Main container for the whiteboard -->
-    <div class="whiteboard-container">
-        <canvas id="whiteboard"></canvas>
-        
-        <!-- Input container -->
-        <div class="input-container">
-            <input type="text" id="drawing-input" placeholder="What do you want to draw?">
-            <button id="send-button">
-                <span class="button-text">Send</span>
-                <div class="loading-spinner"></div>
-            </button>
+    <div class="main-container">
+        <!-- Whiteboard container -->
+        <div class="whiteboard-container">
+            <canvas id="whiteboard"></canvas>
+            
+            <!-- Input container -->
+            <div class="input-container">
+                <input type="text" id="drawing-input" placeholder="What would you like to learn about?">
+                <button id="send-button">
+                    <span class="button-text">Send</span>
+                    <div class="loading-spinner"></div>
+                </button>
+                <button id="clear-button">Clear</button>
+            </div>
+        </div>
+
+        <!-- Explanation panel -->
+        <div class="explanation-panel">
+            <div id="explanation-content"></div>
+            <div id="current-summary"></div>
         </div>
     </div>
 
-    <!-- Add this right after the body tag opens -->
+    <!-- Error message container -->
     <div class="error-message" id="error-message"></div>
 
     <!-- Load JavaScript files -->

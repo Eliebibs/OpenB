@@ -12,18 +12,27 @@ body {
     background-color: #f0f0f0;
 }
 
-.whiteboard-container {
-    width: 100%;
-    height: 100%;
+.main-container {
     display: flex;
-    justify-content: center;
-    align-items: center;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.whiteboard-container {
+    flex: 1;
+    position: relative;
+    min-width: 0;
+    height: 100vh;
+    padding: 20px;
 }
 
 #whiteboard {
+    width: 100%;
+    height: calc(100% - 60px);
     background-color: white;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    /* Canvas will be sized in JavaScript */
+    border: 1px solid #ddd;
 }
 
 .input-container {
@@ -107,4 +116,46 @@ body {
 @keyframes fadeIn {
     from { opacity: 0; transform: translate(-50%, -20px); }
     to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.explanation-panel {
+    width: 350px;
+    height: 100vh;
+    background: white;
+    border-left: 1px solid #ddd;
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+#explanation-content {
+    font-size: 16px;
+    line-height: 1.6;
+    color: #333;
+    margin-bottom: 20px;
+}
+
+#current-summary {
+    margin-top: auto;
+    padding-top: 20px;
+    border-top: 1px solid #ddd;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #666;
+}
+
+#clear-button {
+    padding: 10px 20px;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 10px;
+}
+
+#clear-button:hover {
+    background: #c82333;
 }

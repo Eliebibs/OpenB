@@ -8,9 +8,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const drawingInput = document.getElementById('drawing-input');
     const sendButton = document.getElementById('send-button');
     const errorMessage = document.getElementById('error-message');
+    const explanationContent = document.getElementById('explanation-content');
+    const currentSummaryElement = document.getElementById('current-summary');
+
+    // Initialize state
+    let currentSummary = "";
 
     // Function to show error message
     const showError = (message) => {
+        console.error('Error:', message);
         errorMessage.textContent = message;
         errorMessage.classList.add('visible');
         setTimeout(() => {
@@ -28,33 +34,56 @@ document.addEventListener('DOMContentLoaded', () => {
         drawingInput.disabled = true;
 
         try {
-            // Get drawing instructions from GPT
-            const instructions = await gptService.generateDrawingInstructions(
+            console.log('Sending prompt:', prompt);
+            console.log('Current summary:', currentSummary);
+            console.log('Current shapes:', whiteboard.shapes);
+
+            // Get response from GPT
+            const response = await gptService.generateMultiStepResponse(
                 prompt, 
-                whiteboard.dimensions
+                whiteboard.dimensions,
+                currentSummary,
+                whiteboard.shapes
             );
 
-            // Log the instructions to console for debugging
-            console.log('GPT Drawing Instructions:', instructions);
+            console.log('GPT Response:', response);
 
-            // Draw the instructions on the whiteboard
-            const success = whiteboard.drawFromInstructions(instructions);
+            // Update the explanation panel
+            explanationContent.textContent = response.explanation;
+
+            // Draw the new shapes
+            const success = whiteboard.drawFromInstructions(response.drawing);
             
             if (!success) {
-                showError('Failed to draw instructions');
-            } else {
-                // Clear the input after successful drawing
-                drawingInput.value = '';
+                throw new Error('Failed to draw instructions');
             }
 
+            // Update the summary
+            currentSummary = response.summary;
+            currentSummaryElement.textContent = currentSummary;
+
+            // Clear the input after successful drawing
+            drawingInput.value = '';
+
         } catch (error) {
-            console.error('Error:', error);
-            showError('Error generating drawing instructions');
+            console.error('Detailed error:', error);
+            showError(error.message || 'Error generating drawing instructions');
         } finally {
             // Reset UI state
             sendButton.classList.remove('loading');
             drawingInput.disabled = false;
         }
+    });
+
+    // Handle clear button
+    const clearButton = document.getElementById('clear-button');
+    clearButton.addEventListener('click', () => {
+        whiteboard.shapes = [];
+        whiteboard.redrawShapes();
+        currentSummary = "";
+        explanationContent.textContent = "";
+        currentSummaryElement.textContent = "";
+        console.log('Board and summary cleared');
     });
 
     // Handle enter key in input
